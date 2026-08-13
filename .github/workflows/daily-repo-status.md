@@ -16,7 +16,9 @@ permissions:
 
 network: defaults
 
-model: gpt-4o
+engine:
+  id: copilot
+  model: gpt-4o
 
 models:
   default-ai-credits-pricing:
@@ -56,8 +58,6 @@ Review, where available:
 - Open issues that may require attention
 - Potential project improvements
 - Productivity or engineering insights
-
-The report should include:
 
 ## Repository Summary
 
