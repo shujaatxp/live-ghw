@@ -1,0 +1,95 @@
+name: Verify Copilot CLI Installation
+description: Verify and fix GitHub Copilot CLI installation
+
+runs:
+  using: composite
+  steps:
+    - name: Check and verify Copilot CLI
+      shell: bash
+      run: |
+        set -e
+        
+        echo "Checking GitHub Copilot CLI installation..."
+        
+        # Check if copilot binary exists
+        if [ ! -f /usr/local/bin/copilot ]; then
+          echo "⚠️  Copilot binary not found at /usr/local/bin/copilot"
+          echo "Searching for copilot in system..."
+          
+          # Try to find copilot
+          COPILOT_BIN=$(find /usr -name copilot -type f 2>/dev/null | head -1 || true)
+          
+          if [ -z "$COPILOT_BIN" ]; then
+            echo "❌ ERROR: Copilot CLI binary not found anywhere on system"
+            echo ""
+            echo "Attempting alternative installation method..."
+            
+            # Try installing via npm
+            if command -v npm &> /dev/null; then
+              echo "Installing GitHub Copilot CLI via npm..."
+              npm install -g @github/copilot-cli || {
+                echo "npm installation failed"
+                exit 1
+              }
+            else
+              echo "npm not found. Trying direct GitHub release download..."
+              
+              # Get system info
+              ARCH=$(uname -m)
+              OS=$(uname -s)
+              
+              case "$OS" in
+                Linux)
+                  case "$ARCH" in
+                    x86_64) PLATFORM="linux-x64" ;;
+                    aarch64) PLATFORM="linux-arm64" ;;
+                    *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
+                  esac
+                  ;;
+                Darwin)
+                  case "$ARCH" in
+                    x86_64) PLATFORM="macos-x64" ;;
+                    arm64) PLATFORM="macos-arm64" ;;
+                    *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
+                  esac
+                  ;;
+                *)
+                  echo "Unsupported OS: $OS"
+                  exit 1
+                  ;;
+              esac
+              
+              echo "Downloading Copilot CLI for $PLATFORM..."
+              DOWNLOAD_URL="https://github.com/github/copilot-cli/releases/latest/download/copilot-$PLATFORM.tar.gz"
+              
+              curl -sL "$DOWNLOAD_URL" | tar -xz -C /tmp/
+              sudo mv /tmp/copilot /usr/local/bin/copilot
+              sudo chmod +x /usr/local/bin/copilot
+            fi
+          else
+            echo "Found copilot at: $COPILOT_BIN"
+            echo "Creating symlink..."
+            sudo ln -sf "$COPILOT_BIN" /usr/local/bin/copilot
+          fi
+        fi
+        
+        # Verify installation
+        if [ ! -f /usr/local/bin/copilot ]; then
+          echo "❌ FATAL: Failed to install Copilot CLI"
+          exit 1
+        fi
+        
+        # Ensure executable
+        if [ ! -x /usr/local/bin/copilot ]; then
+          echo "Setting execute permissions on Copilot CLI..."
+          sudo chmod +x /usr/local/bin/copilot
+        fi
+        
+        # Test the binary
+        echo "Testing Copilot CLI..."
+        /usr/local/bin/copilot --version || {
+          echo "❌ Copilot CLI test failed"
+          exit 1
+        }
+        
+        echo "✅ Copilot CLI verified successfully"
